@@ -1,12 +1,19 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
+
+import logging
+import pickle
 
 import numpy as np
 import spacy
-import pickle
+import tqdm
 
 from spacy.tokens import Doc
 
-class WhitespaceTokenizer(object):
+
+log = logging.getLogger(__name__)
+
+
+class WhitespaceTokenizer:
     def __init__(self, vocab):
         self.vocab = vocab
 
@@ -16,8 +23,10 @@ class WhitespaceTokenizer(object):
         spaces = [True] * len(words)
         return Doc(self.vocab, words=words, spaces=spaces)
 
-nlp = spacy.load('en_core_web_sm')
+
+nlp = spacy.load('en')
 nlp.tokenizer = WhitespaceTokenizer(nlp.vocab)
+
 
 def dependency_adj_matrix(text):
     # https://spacy.io/docs/usage/processing-text
@@ -34,21 +43,25 @@ def dependency_adj_matrix(text):
 
     return matrix
 
+
 def process(filename):
-    fin = open(filename, 'r', encoding='utf-8', newline='\n', errors='ignore')
-    lines = fin.readlines()
-    fin.close()
+    """
+    """
+    log.info('Processing %s', filename)
+    with open(filename, 'r', encoding='utf-8', newline='\n', errors='ignore') as fin:
+        lines = fin.readlines()
     idx2graph = {}
-    fout = open(filename+'.graph', 'wb')
-    for i in range(0, len(lines), 3):
+    for i in tqdm.tqdm(range(0, len(lines), 3)):
         text_left, _, text_right = [s.lower().strip() for s in lines[i].partition("$T$")]
         aspect = lines[i + 1].lower().strip()
         adj_matrix = dependency_adj_matrix(text_left+' '+aspect+' '+text_right)
         idx2graph[i] = adj_matrix
-    pickle.dump(idx2graph, fout)        
-    fout.close() 
+    with open(filename+'.graph', 'wb') as fout:
+        pickle.dump(idx2graph, fout)
+
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     process('./datasets/acl-14-short-data/train.raw')
     process('./datasets/acl-14-short-data/test.raw')
     process('./datasets/semeval14/restaurant_train.raw')
